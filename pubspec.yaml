@@ -15,6 +15,8 @@ dependencies:
   # UI Components
   cupertino_icons: ^1.0.8
   
+  # Remove font_awesome_flutter - we'll use Material Icons instead
+
   # Local Storage
   shared_preferences: ^2.2.2
   
@@ -42,17 +44,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # Assets
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
-  #   - assets/fonts/
-
-  # Fonts
-  # fonts:
-  #   - family: Roboto
-  #     fonts:
-  #       - asset: fonts/Roboto-Regular.ttf
-  #       - asset: fonts/Roboto-Bold.ttf
-  #         weight: 700
