@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth import get_user_model , authenticate 
+from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from .models import Notification
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
@@ -77,3 +77,27 @@ class TokenSerializer(serializers.Serializer):
     
     class Meta:
         fields = ['refresh', 'access']
+class NotificationSerializer(serializers.ModelSerializer):
+    related_club_name = serializers.SerializerMethodField()
+    related_event_title = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'title', 'message', 'type',
+            'is_read',
+            'related_club', 'related_club_name',
+            'related_event', 'related_event_title',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+    
+    def get_related_club_name(self, obj):
+        if obj.related_club:
+            return obj.related_club.name
+        return None
+    
+    def get_related_event_title(self, obj):
+        if obj.related_event:
+            return obj.related_event.title
+        return None        

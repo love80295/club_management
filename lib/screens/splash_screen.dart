@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,19 +16,18 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    // Wait for 2-3 seconds for splash screen
+    // Wait 2 seconds for splash animation
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // Check if user is logged in
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.containsKey('auth_token');
-    
-    // Navigate to appropriate screen
-    if (mounted) {
-      Navigator.pushReplacementNamed(
-        context,
-        isLoggedIn ? '/home' : '/login',
-      );
+    final isLoggedIn = await AuthService.isLoggedIn();
+
+    if (!mounted) return;
+
+    if (isLoggedIn) {
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      Navigator.pushReplacementNamed(context, '/login');
     }
   }
 
@@ -50,7 +49,7 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // App Logo
+              // Logo
               Container(
                 width: 120,
                 height: 120,
@@ -59,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -72,6 +71,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
               // App Name
               const Text(
                 'Campus Connect',
@@ -92,7 +92,8 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 60),
-              // Loading Indicator
+
+              // Loading
               const CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -9,77 +9,175 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final TextEditingController _nameController = TextEditingController();
+  // Controllers
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  bool _isLoading = false;
+  final TextEditingController _phoneController = TextEditingController();
+
+  // Dropdown values
   String _selectedDepartment = 'Computer Science';
   String _selectedYear = '1st Year';
 
-  final List<String> departments = [
+  // State
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+  bool _acceptTerms = false;
+
+  final List<String> _departments = [
     'Computer Science',
     'Information Technology',
     'Electronics & Communication',
     'Mechanical Engineering',
     'Civil Engineering',
     'Electrical Engineering',
+    'Chemical Engineering',
   ];
 
-  final List<String> years = [
+  final List<String> _years = [
     '1st Year',
     '2nd Year',
     '3rd Year',
     '4th Year',
   ];
 
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SIGN UP
+  // ═══════════════════════════════════════════════════════════
   Future<void> _signUp() async {
     // Validation
-    if (_nameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty ||
-        _confirmPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all fields'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (_firstNameController.text.trim().isEmpty) {
+      _showSnackBar('Please enter first name', Colors.red);
       return;
     }
-
+    if (_lastNameController.text.trim().isEmpty) {
+      _showSnackBar('Please enter last name', Colors.red);
+      return;
+    }
+    if (_usernameController.text.trim().isEmpty) {
+      _showSnackBar('Please enter username', Colors.red);
+      return;
+    }
+    if (_usernameController.text.trim().length < 4) {
+      _showSnackBar('Username must be at least 4 characters', Colors.red);
+      return;
+    }
+    if (_emailController.text.trim().isEmpty) {
+      _showSnackBar('Please enter email', Colors.red);
+      return;
+    }
+    if (!_isValidEmail(_emailController.text.trim())) {
+      _showSnackBar('Please enter a valid email', Colors.red);
+      return;
+    }
+    if (_passwordController.text.isEmpty) {
+      _showSnackBar('Please enter password', Colors.red);
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      _showSnackBar('Password must be at least 6 characters', Colors.red);
+      return;
+    }
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Passwords do not match'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackBar('Passwords do not match', Colors.red);
+      return;
+    }
+    if (!_acceptTerms) {
+      _showSnackBar('Please accept the Terms & Conditions', Colors.red);
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
+    final result = await AuthService.register(
+      username: _usernameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      confirmPassword: _confirmPasswordController.text,
+      firstName: _firstNameController.text.trim(),
+      lastName: _lastNameController.text.trim(),
+      department: _selectedDepartment,
+      year: _selectedYear,
+      phoneNumber: _phoneController.text.trim(),
+    );
 
-    // Save login state (temporary)
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', 'dummy_token');
+    if (!mounted) return;
+    setState(() => _isLoading = false);
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (result['success'] == true) {
+      _showSnackBar(
+        'Registration successful! Welcome ${result['user'].fullName}',
+        Colors.green,
+      );
 
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else {
+      // Show detailed errors if available
+      final errors = result['errors'];
+      String errorMsg = result['message'] ?? 'Registration failed';
+
+      if (errors != null && errors is Map) {
+        final firstError = errors.entries.first;
+        if (firstError.value is List) {
+          errorMsg = '${firstError.key}: ${(firstError.value as List).first}';
+        } else {
+          errorMsg = '${firstError.key}: ${firstError.value}';
+        }
+      }
+
+      _showSnackBar(errorMsg, Colors.red);
     }
   }
 
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              color == Colors.green ? Icons.check_circle : Icons.error,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,80 +194,120 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(20),
             child: Column(
               children: [
-                const SizedBox(height: 20),
-                // Back Button
+                const SizedBox(height: 10),
+
+                // Back button
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                 ),
                 const SizedBox(height: 8),
+
+                // Logo
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 15,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.person_add,
+                    size: 38,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 const Text(
                   'Create Account',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 const Text(
                   'Join your university clubs',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
-                const SizedBox(height: 30),
-                // Sign Up Form
+                const SizedBox(height: 24),
+
+                // Form
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                       ),
                     ],
                   ),
                   child: Column(
                     children: [
-                      // Full Name
-                      TextField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Full Name',
-                          hintText: 'Enter your full name',
-                          prefixIcon: Icon(Icons.person),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                          ),
-                        ),
+                      // First Name
+                      _buildTextField(
+                        controller: _firstNameController,
+                        label: 'First Name',
+                        hint: 'Enter first name',
+                        icon: Icons.person,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+
+                      // Last Name
+                      _buildTextField(
+                        controller: _lastNameController,
+                        label: 'Last Name',
+                        hint: 'Enter last name',
+                        icon: Icons.person_outline,
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Username
+                      _buildTextField(
+                        controller: _usernameController,
+                        label: 'Username',
+                        hint: 'Choose a username',
+                        icon: Icons.account_circle,
+                      ),
+                      const SizedBox(height: 14),
+
                       // Email
-                      TextField(
+                      _buildTextField(
                         controller: _emailController,
+                        label: 'Email',
+                        hint: 'Enter your email',
+                        icon: Icons.email,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          hintText: 'Enter your email',
-                          prefixIcon: Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.all(Radius.circular(12)),
-                          ),
-                        ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+
+                      // Phone
+                      _buildTextField(
+                        controller: _phoneController,
+                        label: 'Phone (optional)',
+                        hint: 'Enter mobile number',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 14),
+
                       // Password
                       TextField(
                         controller: _passwordController,
@@ -184,25 +322,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ? Icons.visibility
                                   : Icons.visibility_off,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
                           ),
                           border: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(12)),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+
                       // Confirm Password
                       TextField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
                         decoration: InputDecoration(
                           labelText: 'Confirm Password',
-                          hintText: 'Confirm your password',
+                          hintText: 'Re-enter password',
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
@@ -210,19 +346,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                   ? Icons.visibility
                                   : Icons.visibility_off,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
-                              });
-                            },
+                            onPressed: () => setState(() =>
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword),
                           ),
                           border: const OutlineInputBorder(
                             borderRadius: BorderRadius.all(Radius.circular(12)),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      // Department Dropdown
+                      const SizedBox(height: 14),
+
+                      // Department
                       DropdownButtonFormField<String>(
                         value: _selectedDepartment,
                         decoration: const InputDecoration(
@@ -232,20 +367,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             borderRadius: BorderRadius.all(Radius.circular(12)),
                           ),
                         ),
-                        items: departments.map((dept) {
+                        items: _departments.map((dept) {
                           return DropdownMenuItem(
                             value: dept,
-                            child: Text(dept),
+                            child: Text(dept, style: const TextStyle(fontSize: 14)),
                           );
                         }).toList(),
                         onChanged: (value) {
-                          setState(() {
-                            _selectedDepartment = value!;
-                          });
+                          setState(() => _selectedDepartment = value!);
                         },
                       ),
-                      const SizedBox(height: 16),
-                      // Year Dropdown
+                      const SizedBox(height: 14),
+
+                      // Year
                       DropdownButtonFormField<String>(
                         value: _selectedYear,
                         decoration: const InputDecoration(
@@ -255,19 +389,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             borderRadius: BorderRadius.all(Radius.circular(12)),
                           ),
                         ),
-                        items: years.map((year) {
+                        items: _years.map((year) {
                           return DropdownMenuItem(
                             value: year,
                             child: Text(year),
                           );
                         }).toList(),
                         onChanged: (value) {
-                          setState(() {
-                            _selectedYear = value!;
-                          });
+                          setState(() => _selectedYear = value!);
                         },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 14),
+
+                      // Terms checkbox
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _acceptTerms,
+                            onChanged: (value) {
+                              setState(() => _acceptTerms = value ?? false);
+                            },
+                            activeColor: Colors.deepPurple,
+                          ),
+                          const Expanded(
+                            child: Text(
+                              'I accept the Terms & Conditions',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
                       // Sign Up Button
                       SizedBox(
                         width: double.infinity,
@@ -282,8 +435,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                           child: _isLoading
                               ? const SizedBox(
-                                  height: 24,
-                                  width: 24,
+                                  height: 22,
+                                  width: 22,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2,
@@ -302,7 +455,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+
                 // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -312,9 +466,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       style: TextStyle(color: Colors.white70),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                      onTap: () => Navigator.pop(context),
                       child: const Text(
                         'Login',
                         style: TextStyle(
@@ -329,6 +481,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        prefixIcon: Icon(icon),
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
     );

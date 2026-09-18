@@ -74,7 +74,7 @@ class EventSerializer(serializers.ModelSerializer):
             'is_full', 'is_registered', 'image', 'is_past',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at','organizer_name']
     
     def get_is_registered(self, obj):
         request = self.context.get('request')
@@ -93,6 +93,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = '__all__'
+        read_only_fields = ['organizer_name'] 
     
     def get_is_registered(self, obj):
         request = self.context.get('request')

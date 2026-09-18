@@ -45,3 +45,48 @@ class User(AbstractUser):
     def is_student(self):
         """Check if user is a student"""
         return self.role == 'student'
+# notification class added
+class Notification(models.Model):
+    TYPE_CHOICES = (
+        ('club_approved', 'Club Approved'),
+        ('club_rejected', 'Club Rejected'),
+        ('kicked_from_club', 'Kicked from Club'),
+        ('club_join_request', 'Club Join Request'),
+        ('event_registered', 'Event Registered'),
+        ('general', 'General'),
+    )
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    type = models.CharField(max_length=50, choices=TYPE_CHOICES, default='general')
+    is_read = models.BooleanField(default=False)
+    
+    # Optional relations
+    related_club = models.ForeignKey(
+        'clubs.Club',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notifications'
+    )
+    related_event = models.ForeignKey(
+        'events.Event',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notifications'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'notifications'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"    

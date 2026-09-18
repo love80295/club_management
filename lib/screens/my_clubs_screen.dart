@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/club_model.dart';
+import '../services/club_service.dart';
 
 class MyClubsScreen extends StatefulWidget {
   const MyClubsScreen({super.key});
@@ -11,68 +13,117 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
   String _selectedFilter = 'All';
   String _selectedSort = 'Recent';
 
-  // Mock joined clubs data
-  final List<Map<String, dynamic>> _joinedClubs = [
-    {
-      'id': 1,
-      'name': 'Google Developer Group',
-      'category': 'Technical',
-      'members': 150,
-      'role': 'Member',
-      'upcomingActivities': 3,
-      'joinedDate': '15 Jan 2026',
-      'isActive': true,
-    },
-    {
-      'id': 2,
-      'name': 'Music Club',
-      'category': 'Cultural',
-      'members': 85,
-      'role': 'Member',
-      'upcomingActivities': 1,
-      'joinedDate': '20 Feb 2026',
-      'isActive': true,
-    },
-    {
-      'id': 3,
-      'name': 'Robotics Club',
-      'category': 'Technical',
-      'members': 120,
-      'role': 'Admin',
-      'upcomingActivities': 5,
-      'joinedDate': '10 Mar 2026',
-      'isActive': true,
-    },
-    {
-      'id': 4,
-      'name': 'Photography Club',
-      'category': 'Cultural',
-      'members': 95,
-      'role': 'Member',
-      'upcomingActivities': 2,
-      'joinedDate': '5 Apr 2026',
-      'isActive': false,
-    },
-  ];
+  List<Club> _myClubs = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  // Get filtered clubs
-  List<Map<String, dynamic>> get _filteredClubs {
-    var clubs = _joinedClubs.where((club) {
-      if (_selectedFilter == 'All') return true;
-      if (_selectedFilter == 'Active') return club['isActive'] == true;
-      if (_selectedFilter == 'Inactive') return club['isActive'] == false;
-      return true;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadMyClubs();
+  }
 
+  // ═══════════════════════════════════════════════════════════
+  // LOAD MY CLUBS
+  // ═══════════════════════════════════════════════════════════
+  Future<void> _loadMyClubs() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final result = await ClubService.getMyClubs();
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      setState(() {
+        _myClubs = result['clubs'] ?? [];
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = result['message'] ?? 'Failed to load clubs';
+      });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // LEAVE CLUB
+  // ═══════════════════════════════════════════════════════════
+  Future<void> _leaveClub(Club club) async {
+    final confirm = await _showLeaveConfirmation(club);
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+
+    final result = await ClubService.leaveClub(club.id);
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      _showSnackBar('Left ${club.name}', Colors.orange);
+      _loadMyClubs();
+    } else {
+      setState(() => _isLoading = false);
+      _showSnackBar(result['message'] ?? 'Failed to leave', Colors.red);
+    }
+  }
+
+  Future<bool?> _showLeaveConfirmation(Club club) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave Club'),
+        content: Text('Are you sure you want to leave "${club.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(10),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // FILTERED & SORTED
+  // ═══════════════════════════════════════════════════════════
+  List<Club> get _filteredClubs {
+    var clubs = List<Club>.from(_myClubs);
+
+    // Sort
     if (_selectedSort == 'Recent') {
-      clubs.sort((a, b) => b['joinedDate'].compareTo(a['joinedDate']));
+      clubs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } else if (_selectedSort == 'Alphabetical') {
-      clubs.sort((a, b) => a['name'].compareTo(b['name']));
+      clubs.sort((a, b) => a.name.compareTo(b.name));
     }
 
     return clubs;
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,11 +137,16 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadMyClubs,
+            tooltip: 'Refresh',
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              Navigator.pushNamed(context, '/explore');
+              Navigator.pushReplacementNamed(context, '/explore');
             },
-            tooltip: 'Discover New Clubs',
+            tooltip: 'Discover Clubs',
           ),
         ],
       ),
@@ -102,67 +158,49 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
             colors: [Colors.deepPurple.shade50, Colors.white],
           ),
         ),
-        child: CustomScrollView(
-          slivers: [
-            // Stats Summary
-            SliverToBoxAdapter(
-              child: _buildStatsSummary(),
-            ),
-            // Filter and Sort
-            SliverToBoxAdapter(
-              child: _buildFilterSortBar(),
-            ),
-            // Club List
-            if (_filteredClubs.isEmpty)
-              SliverFillRemaining(
-                child: _buildEmptyState(),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.deepPurple),
               )
-            else
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final club = _filteredClubs[index];
-                    return _buildClubCard(club);
-                  },
-                  childCount: _filteredClubs.length,
-                ),
-              ),
-          ],
-        ),
+            : _errorMessage != null
+                ? _buildErrorState()
+                : RefreshIndicator(
+                    onRefresh: _loadMyClubs,
+                    color: Colors.deepPurple,
+                    child: _filteredClubs.isEmpty
+                        ? _buildEmptyState()
+                        : CustomScrollView(
+                            slivers: [
+                              SliverToBoxAdapter(
+                                child: _buildStatsSummary(),
+                              ),
+                              SliverToBoxAdapter(
+                                child: _buildFilterSortBar(),
+                              ),
+                              SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    return _buildClubCard(_filteredClubs[index]);
+                                  },
+                                  childCount: _filteredClubs.length,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: 2,
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Explore'),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'My Clubs'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacementNamed(context, '/home');
-          } else if (index == 1) {
-            Navigator.pushReplacementNamed(context, '/explore');
-          } else if (index == 2) {
-            // Already on My Clubs
-          } else if (index == 3) {
-            Navigator.pushReplacementNamed(context, '/profile');
-          }
-        },
-      ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // STATS SUMMARY
+  // ═══════════════════════════════════════════════════════════
   Widget _buildStatsSummary() {
-    final activeClubs = _joinedClubs.where((club) => club['isActive'] == true).length;
-    final totalMembers = _joinedClubs.fold<int>(0, (sum, club) => sum + (club['members'] as int));
-    final totalActivities = _joinedClubs.fold<int>(
-        0, (sum, club) => sum + (club['upcomingActivities'] as int));
+    final totalMembers = _myClubs.fold<int>(
+      0,
+      (sum, club) => sum + club.memberCount,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -176,7 +214,7 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.3),
+            color: Colors.deepPurple.withValues(alpha: 0.3),
             spreadRadius: 2,
             blurRadius: 8,
           ),
@@ -185,11 +223,23 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Clubs', '$activeClubs/${_joinedClubs.length}', Icons.group),
+          _buildStatItem(
+            'Clubs',
+            _myClubs.length.toString(),
+            Icons.group,
+          ),
           Container(width: 1, height: 30, color: Colors.white24),
-          _buildStatItem('Members', totalMembers.toString(), Icons.people),
+          _buildStatItem(
+            'Members',
+            totalMembers.toString(),
+            Icons.people,
+          ),
           Container(width: 1, height: 30, color: Colors.white24),
-          _buildStatItem('Activities', totalActivities.toString(), Icons.event),
+          _buildStatItem(
+            'Active',
+            _myClubs.length.toString(),
+            Icons.check_circle,
+          ),
         ],
       ),
     );
@@ -216,6 +266,9 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // FILTER / SORT BAR
+  // ═══════════════════════════════════════════════════════════
   Widget _buildFilterSortBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6),
@@ -238,12 +291,9 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
                   items: const [
                     DropdownMenuItem(value: 'All', child: Text('All Clubs')),
                     DropdownMenuItem(value: 'Active', child: Text('Active')),
-                    DropdownMenuItem(value: 'Inactive', child: Text('Inactive')),
                   ],
                   onChanged: (value) {
-                    setState(() {
-                      _selectedFilter = value!;
-                    });
+                    setState(() => _selectedFilter = value!);
                   },
                 ),
               ),
@@ -265,13 +315,13 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
                   icon: const Icon(Icons.sort, size: 18),
                   isExpanded: true,
                   items: const [
-                    DropdownMenuItem(value: 'Recent', child: Text('Most Recent')),
-                    DropdownMenuItem(value: 'Alphabetical', child: Text('A-Z Order')),
+                    DropdownMenuItem(
+                        value: 'Recent', child: Text('Most Recent')),
+                    DropdownMenuItem(
+                        value: 'Alphabetical', child: Text('A-Z Order')),
                   ],
                   onChanged: (value) {
-                    setState(() {
-                      _selectedSort = value!;
-                    });
+                    setState(() => _selectedSort = value!);
                   },
                 ),
               ),
@@ -282,10 +332,17 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
     );
   }
 
-  Widget _buildClubCard(Map<String, dynamic> club) {
+  // ═══════════════════════════════════════════════════════════
+  // CLUB CARD
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildClubCard(Club club) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(context, '/clubdetails');
+        Navigator.pushNamed(
+          context,
+          '/clubdetails',
+          arguments: club.id,
+        );
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -295,104 +352,65 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
+              color: Colors.grey.withValues(alpha: 0.08),
               spreadRadius: 2,
               blurRadius: 6,
             ),
           ],
-          border: club['isActive']
-              ? null
-              : Border.all(color: Colors.grey.shade300, width: 1),
         ),
         child: Row(
           children: [
-            // Club Logo
+            // Logo
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: club['isActive'] ? Colors.deepPurple.shade100 : Colors.grey.shade200,
+                color: Colors.deepPurple.shade100,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
-                  club['name'][0].toUpperCase(),
-                  style: TextStyle(
+                  club.name[0].toUpperCase(),
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: club['isActive'] ? Colors.deepPurple : Colors.grey,
+                    color: Colors.deepPurple,
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
-            // Club Info
+
+            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          club['name'],
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      if (club['role'] == 'Admin')
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Admin',
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber.shade800,
-                            ),
-                          ),
-                        ),
-                      if (!club['isActive'])
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade100,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Inactive',
-                            style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade800,
-                            ),
-                          ),
-                        ),
-                    ],
+                  Text(
+                    club.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: _getCategoryColor(club['category']).withOpacity(0.2),
+                          color: _getCategoryColor(club.category)
+                              .withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          club['category'],
+                          club.category,
                           style: TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.w500,
-                            color: _getCategoryColor(club['category']),
+                            color: _getCategoryColor(club.category),
                           ),
                         ),
                       ),
@@ -400,25 +418,21 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
                       const Icon(Icons.people, size: 12, color: Colors.grey),
                       const SizedBox(width: 3),
                       Text(
-                        '${club['members']}',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.event, size: 12, color: Colors.grey),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${club['upcomingActivities']}',
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        '${club.memberCount}',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.grey),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 14,
-              color: club['isActive'] ? Colors.deepPurple : Colors.grey,
+
+            // Leave button
+            IconButton(
+              icon: const Icon(Icons.exit_to_app, color: Colors.red),
+              tooltip: 'Leave Club',
+              onPressed: () => _leaveClub(club),
             ),
           ],
         ),
@@ -443,38 +457,113 @@ class _MyClubsScreenState extends State<MyClubsScreen> {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // EMPTY & ERROR STATES
+  // ═══════════════════════════════════════════════════════════
   Widget _buildEmptyState() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+        Center(
+          child: Column(
+            children: [
+              Icon(Icons.group_off, size: 80, color: Colors.grey.shade300),
+              const SizedBox(height: 16),
+              const Text(
+                'No Clubs Joined Yet',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Discover and join clubs that match your interests',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/explore');
+                },
+                icon: const Icon(Icons.explore),
+                label: const Text('Explore Clubs'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.group_off, size: 80, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text(
-            'No Clubs Joined Yet',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Discover and join clubs that match your interests',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pushNamed(context, '/explore');
-            },
-            icon: const Icon(Icons.explore),
-            label: const Text('Explore Clubs'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 60, color: Colors.red.shade300),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage ?? 'Something went wrong',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadMyClubs,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // BOTTOM NAV
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 2,
+      selectedItemColor: Colors.deepPurple,
+      unselectedItemColor: Colors.grey,
+      backgroundColor: Colors.white,
+      elevation: 8,
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+        BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Explore'),
+        BottomNavigationBarItem(icon: Icon(Icons.group), label: 'My Clubs'),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      ],
+      onTap: (index) {
+        if (index == 0) {
+          Navigator.pushReplacementNamed(context, '/home');
+        } else if (index == 1) {
+          Navigator.pushReplacementNamed(context, '/explore');
+        } else if (index == 2) {
+          // Already here
+        } else if (index == 3) {
+          Navigator.pushReplacementNamed(context, '/profile');
+        }
+      },
     );
   }
 }
