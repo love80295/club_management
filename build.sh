@@ -2,8 +2,8 @@
 set -o errexit
 
 echo "═══ Installing dependencies ═══"
-pip3 install --upgrade pip3
-pip3 install -r backend/requirements.txt
+pip install --upgrade pip
+pip install -r backend/requirements.txt
 
 echo "═══ Collecting static files ═══"
 python3 backend/manage.py collectstatic --no-input
