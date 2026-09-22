@@ -1,12 +1,12 @@
 {
   "version": 2,
+  "buildCommand": "pip install -r requirements.txt && python3 manage.py collectstatic --noinput",
   "builds": [
     {
       "src": "club_backend/wsgi.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb",
-        "runtime": "python3.12"
+        "maxLambdaSize": "15mb"
       }
     }
   ],
@@ -15,8 +15,5 @@
       "src": "/(.*)",
       "dest": "club_backend/wsgi.py"
     }
-  ],
-  "env": {
-    "DJANGO_SETTINGS_MODULE": "club_backend.settings"
-  }
+  ]
 }
