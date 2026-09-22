@@ -1,19 +1,15 @@
 {
-  "version": 2,
   "buildCommand": "pip install -r requirements.txt && python3 manage.py collectstatic --noinput",
-  "builds": [
-    {
-      "src": "club_backend/wsgi.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb"
-      }
+  "outputDirectory": "staticfiles_build",
+  "functions": {
+    "club_backend/wsgi.py": {
+      "maxDuration": 30
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "club_backend/wsgi.py"
+      "source": "/(.*)",
+      "destination": "/club_backend/wsgi.py"
     }
   ]
 }

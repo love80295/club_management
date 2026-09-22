@@ -1,0 +1,2 @@
+[tool.vercel]
+pythonVersion = "3.12"
