@@ -1,2 +1,2 @@
-[tool.vercel]
-pythonVersion = "3.12"
+[project]
+requires-python = ">=3.12,<3.13"
