@@ -6,10 +6,10 @@ pip install --upgrade pip
 pip install -r backend/requirements.txt
 
 echo "═══ Collecting static files ═══"
-python3 backend/manage.py collectstatic --no-input --clear
+python3 backend/manage.py collectstatic --no-input --verbosity 2
 
 echo "═══ Verifying static files ═══"
-ls -la backend/staticfiles_build/static/admin/css/base.css
+ls -la backend/staticfiles_build/static/admin/css/ | head -5
 
 echo "═══ Running migrations ═══"
 python3 backend/manage.py migrate

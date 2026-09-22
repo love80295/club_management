@@ -1,26 +1,12 @@
-import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
   // ═══════════════════════════════════════════════════════════
-  // BASE URL - Automatically detected based on platform
+  // PRODUCTION URL (Render)
   // ═══════════════════════════════════════════════════════════
-  //
-  // • Web / iOS Simulator: http://127.0.0.1:8000/api
-  // • Android Emulator:    http://10.0.2.2:8000/api
-  // • Physical Device:     http://YOUR_MAC_IP:8000/api
-  // ═══════════════════════════════════════════════════════════
+  static const String _prodUrl = 'https://campus-connect-backend-r530.onrender.com/api';
 
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000/api';
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
-    } else if (Platform.isIOS) {
-      return 'http://127.0.0.1:8000/api';
-    }
-    return 'http://127.0.0.1:8000/api';
-  }
+  static String get baseUrl => _prodUrl;
 
   // ═══════════════════════════════════════════════════════════
   // AUTH ENDPOINTS
@@ -52,4 +38,10 @@ class ApiConfig {
   // REGISTRATION ENDPOINTS
   // ═══════════════════════════════════════════════════════════
   static const String registrations = '/registrations/';
+
+  // ═══════════════════════════════════════════════════════════
+  // NOTIFICATIONS
+  // ═══════════════════════════════════════════════════════════
+  static const String notifications = '/notifications/';
+  static const String unreadCount = '/notifications/unread_count/';
 }
