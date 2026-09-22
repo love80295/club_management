@@ -16,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
             'skills', 'interests', 'role', 'phone_number',
             'date_joined', 'created_at'
         ]
-        read_only_fields = ['id', 'date_joined', 'created_at']
+        read_only_fields = ['id', 'username', 'date_joined', 'created_at']
     
     def get_full_name(self, obj):
         return obj.full_name
