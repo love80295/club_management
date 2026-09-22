@@ -1,5 +1,11 @@
 {
   "buildCommand": "python3 manage.py collectstatic --noinput",
+  "installCommand": "pip install --upgrade pip && pip install -r requirements.txt",
+  "functions": {
+    "club_backend/wsgi.py": {
+      "runtime": "python3.12"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
