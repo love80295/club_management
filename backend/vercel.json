@@ -1,11 +1,5 @@
 {
   "buildCommand": "pip install -r requirements.txt && python3 manage.py collectstatic --noinput",
-  "outputDirectory": "staticfiles_build",
-  "functions": {
-    "club_backend/wsgi.py": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/(.*)",
