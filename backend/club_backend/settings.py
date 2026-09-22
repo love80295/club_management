@@ -1,6 +1,6 @@
 """
 Django settings for club_backend project.
-Production-ready for Vercel + Neon PostgreSQL + Cloudinary.
+Production-ready for Render + Neon PostgreSQL + Cloudinary.
 """
 
 import os
@@ -188,8 +188,26 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
     }
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
-# ⚠️ IMPORTANT: NOT using Manifest — direct serve karega
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# ⚠️ Static files storage — simple (no compression)
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
+
+# ═══════════════════════════════════════════════════════════════
+# WHITENOISE CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
+
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+WHITENOISE_MIMETYPES = {
+    '.css': 'text/css',
+    '.js': 'application/javascript',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -226,9 +244,12 @@ CORS_ALLOW_HEADERS = [
 # ═══════════════════════════════════════════════════════════════
 
 CSRF_TRUSTED_ORIGINS = [
+    'https://campus-connect-backend-r530.onrender.com',
+    'https://*.onrender.com',
     'https://*.vercel.app',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:8000',
 ]
 
 # Production security
